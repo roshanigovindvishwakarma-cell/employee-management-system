@@ -377,8 +377,8 @@
         <div class="eyebrow">Employee Operations Hub</div>
         <h1>Manage people, access, and employee records from one place.</h1>
         <p>
-          This frontend now talks to the backend auth and employee APIs, keeps your session token,
-          and supports admin-only employee changes.
+          This frontend talks to the backend when it is available, and falls back to browser storage
+          so the deployed app still works as a live demo with admin-only employee changes.
         </p>
 
         <div class="hero-grid">
@@ -518,14 +518,17 @@
   </div>
 
   <script>
-    const API_BASE_URL = "http://localhost:5000";
+    const API_BASE_URL = "https://employee-management-system-i9xo.onrender.com";
     const TOKEN_KEY = "ems_token";
     const USER_KEY = "ems_user";
+    const DEMO_USERS_KEY = "ems_demo_users";
+    const DEMO_EMPLOYEES_KEY = "ems_demo_employees";
 
     let authMode = "login";
     let token = localStorage.getItem(TOKEN_KEY) || "";
     let currentUser = readStoredUser();
     let employees = [];
+    let usingLocalDemo = false;
 
     function readStoredUser() {
       const raw = localStorage.getItem(USER_KEY);
@@ -541,6 +544,16 @@
       const element = document.getElementById(id);
       element.textContent = message || "";
       element.className = "status" + (type ? " " + type : "");
+    }
+
+    function setDemoMode(enabled) {
+      usingLocalDemo = enabled;
+      const message = enabled
+        ? "Backend unavailable. Running in browser demo mode."
+        : "";
+      if (enabled) {
+        setStatus("authStatus", message, "success");
+      }
     }
 
     function showAuthMode(mode) {
@@ -563,18 +576,244 @@
       return headers;
     }
 
-    async function api(path, options = {}) {
-      const response = await fetch(API_BASE_URL + path, options);
-      const contentType = response.headers.get("content-type") || "";
-      const payload = contentType.includes("application/json")
-        ? await response.json()
-        : await response.text();
+    function readJsonArray(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : [];
+      } catch (error) {
+        return [];
+      }
+    }
 
-      if (!response.ok) {
-        throw new Error(payload && payload.message ? payload.message : "Request failed");
+    function writeJsonArray(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function createId(prefix) {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return prefix + "-" + window.crypto.randomUUID();
       }
 
-      return payload;
+      return prefix + "-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+    }
+
+    function ensureDemoSeed() {
+      const users = readJsonArray(DEMO_USERS_KEY);
+      if (!users.length) {
+        writeJsonArray(DEMO_USERS_KEY, [
+          {
+            id: createId("user"),
+            name: "Admin User",
+            email: "admin@example.com",
+            password: "admin123",
+            role: "ADMIN"
+          }
+        ]);
+      }
+
+      const employeesSeed = readJsonArray(DEMO_EMPLOYEES_KEY);
+      if (!employeesSeed.length) {
+        const now = new Date().toISOString();
+        writeJsonArray(DEMO_EMPLOYEES_KEY, [
+          {
+            id: createId("emp"),
+            firstName: "Riya",
+            lastName: "Sharma",
+            email: "riya.sharma@example.com",
+            phone: "+91 98765 43210",
+            department: "HR",
+            title: "People Partner",
+            salary: 650000,
+            status: "ACTIVE",
+            createdAt: now,
+            updatedAt: now
+          },
+          {
+            id: createId("emp"),
+            firstName: "Arjun",
+            lastName: "Patel",
+            email: "arjun.patel@example.com",
+            phone: "+91 91234 56780",
+            department: "Engineering",
+            title: "Backend Developer",
+            salary: 1200000,
+            status: "ACTIVE",
+            createdAt: now,
+            updatedAt: now
+          }
+        ]);
+      }
+    }
+
+    function getDemoUserFromToken() {
+      if (!token || !token.startsWith("demo-token-")) return null;
+      const userId = token.replace("demo-token-", "");
+      return readJsonArray(DEMO_USERS_KEY).find((user) => user.id === userId) || null;
+    }
+
+    async function localApi(path, options = {}) {
+      ensureDemoSeed();
+      setDemoMode(true);
+
+      const method = (options.method || "GET").toUpperCase();
+      const body = options.body ? JSON.parse(options.body) : {};
+      const me = getDemoUserFromToken();
+
+      if (path === "/api/auth/signup" && method === "POST") {
+        const users = readJsonArray(DEMO_USERS_KEY);
+        if (!body.email || !body.password) {
+          throw new Error("Email and password are required");
+        }
+        if (users.some((user) => user.email.toLowerCase() === body.email.toLowerCase())) {
+          throw new Error("Email already registered");
+        }
+
+        const user = {
+          id: createId("user"),
+          name: body.name || "",
+          email: body.email,
+          password: body.password,
+          role: body.role || "USER"
+        };
+
+        users.push(user);
+        writeJsonArray(DEMO_USERS_KEY, users);
+
+        return {
+          token: "demo-token-" + user.id,
+          user: { id: user.id, email: user.email, name: user.name, role: user.role }
+        };
+      }
+
+      if (path === "/api/auth/login" && method === "POST") {
+        const users = readJsonArray(DEMO_USERS_KEY);
+        const user = users.find(
+          (item) => item.email.toLowerCase() === String(body.email || "").toLowerCase()
+        );
+
+        if (!user || user.password !== body.password) {
+          throw new Error("Invalid credentials");
+        }
+
+        return {
+          token: "demo-token-" + user.id,
+          user: { id: user.id, email: user.email, name: user.name, role: user.role }
+        };
+      }
+
+      if (path === "/api/auth/me" && method === "GET") {
+        if (!me) throw new Error("Unauthorized");
+        return {
+          user: { id: me.id, email: me.email, name: me.name, role: me.role }
+        };
+      }
+
+      if (!me) {
+        throw new Error("Missing token");
+      }
+
+      if (path === "/api/employees" && method === "GET") {
+        const items = readJsonArray(DEMO_EMPLOYEES_KEY)
+          .slice()
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        return items;
+      }
+
+      if (path === "/api/employees/stats" && method === "GET") {
+        const items = readJsonArray(DEMO_EMPLOYEES_KEY);
+        return {
+          totalEmployees: items.length,
+          activeEmployees: items.filter((item) => item.status === "ACTIVE").length
+        };
+      }
+
+      if (path === "/api/employees" && method === "POST") {
+        if (me.role !== "ADMIN") throw new Error("Forbidden");
+        if (!body.firstName || !body.lastName || !body.email) {
+          throw new Error("firstName, lastName, email are required");
+        }
+
+        const items = readJsonArray(DEMO_EMPLOYEES_KEY);
+        if (items.some((item) => item.email.toLowerCase() === body.email.toLowerCase())) {
+          throw new Error("Email already exists");
+        }
+
+        const now = new Date().toISOString();
+        const employee = {
+          id: createId("emp"),
+          firstName: body.firstName,
+          lastName: body.lastName,
+          email: body.email,
+          phone: body.phone || null,
+          department: body.department || null,
+          title: body.title || null,
+          salary: body.salary === null ? null : Number(body.salary || 0),
+          status: body.status || "ACTIVE",
+          createdAt: now,
+          updatedAt: now
+        };
+
+        items.push(employee);
+        writeJsonArray(DEMO_EMPLOYEES_KEY, items);
+        return employee;
+      }
+
+      if (path.startsWith("/api/employees/")) {
+        const employeeId = path.split("/").pop();
+        const items = readJsonArray(DEMO_EMPLOYEES_KEY);
+        const index = items.findIndex((item) => item.id === employeeId);
+
+        if (index === -1) throw new Error("Employee not found");
+
+        if (method === "GET") {
+          return items[index];
+        }
+
+        if (me.role !== "ADMIN") throw new Error("Forbidden");
+
+        if (method === "PUT") {
+          const current = items[index];
+          const next = {
+            ...current,
+            ...body,
+            salary: body.salary === null ? null : (body.salary !== undefined ? Number(body.salary) : current.salary),
+            updatedAt: new Date().toISOString()
+          };
+          items[index] = next;
+          writeJsonArray(DEMO_EMPLOYEES_KEY, items);
+          return next;
+        }
+
+        if (method === "DELETE") {
+          items.splice(index, 1);
+          writeJsonArray(DEMO_EMPLOYEES_KEY, items);
+          return { message: "Deleted" };
+        }
+      }
+
+      throw new Error("Request failed");
+    }
+
+    async function api(path, options = {}) {
+      try {
+        const response = await fetch(API_BASE_URL + path, options);
+        const contentType = response.headers.get("content-type") || "";
+        const payload = contentType.includes("application/json")
+          ? await response.json()
+          : await response.text();
+
+        if (!response.ok) {
+          throw new Error(payload && payload.message ? payload.message : "Request failed");
+        }
+
+        setDemoMode(false);
+        return payload;
+      } catch (error) {
+        if (error instanceof TypeError) {
+          return localApi(path, options);
+        }
+        throw error;
+      }
     }
 
     function saveSession(nextToken, user) {

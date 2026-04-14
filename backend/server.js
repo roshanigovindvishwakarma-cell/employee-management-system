@@ -15,6 +15,17 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 
+
+app.get("/", (req, res) => {
+  res.send(`
+    <div style="font-family: sans-serif; padding: 40px; text-align: center;">
+      <h1>🚀 Employee Management API</h1>
+      <p>The backend is up and running.</p>
+      <a href="/health" style="color: #0f766e; font-weight: bold;">Check System Health</a>
+    </div>
+  `);
+});
+
 app.get("/health", (req, res) => {
   res.json({ ok: true });
 });
