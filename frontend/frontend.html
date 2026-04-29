@@ -518,7 +518,9 @@
   </div>
 
   <script>
-    const API_BASE_URL = "https://employee-management-system-i9xo.onrender.com";
+    const API_BASE_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
+      ? "http://localhost:5000" 
+      : "https://employee-management-system-i9xo.onrender.com";
     const TOKEN_KEY = "ems_token";
     const USER_KEY = "ems_user";
     const DEMO_USERS_KEY = "ems_demo_users";
