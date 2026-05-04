@@ -1,0 +1,9 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "Employee Management System Frontend",
+  "scripts": {
+    "start": "npx serve -l 3000 ."
+  },
+  "dependencies": {}
+}

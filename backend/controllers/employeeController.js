@@ -17,18 +17,25 @@ async function createEmployee(req, res) {
     return res.status(400).json({ message: "firstName, lastName, email are required" });
   }
 
-  const employee = await employeeModel.createEmployee({
-    firstName,
-    lastName,
-    email,
-    phone: phone || null,
-    department: department || null,
-    title: title || null,
-    salary: salary === 0 || salary ? Number(salary) : null,
-    status: status || "ACTIVE"
-  });
+  try {
+    const employee = await employeeModel.createEmployee({
+      firstName,
+      lastName,
+      email,
+      phone: phone || null,
+      department: department || null,
+      title: title || null,
+      salary: salary === 0 || salary ? Number(salary) : null,
+      status: status || "ACTIVE"
+    });
 
-  res.status(201).json(employee);
+    res.status(201).json(employee);
+  } catch (error) {
+    if (error.code === "P2002") {
+      return res.status(409).json({ message: "An employee with this email already exists" });
+    }
+    res.status(500).json({ message: "Failed to create employee" });
+  }
 }
 
 async function updateEmployee(req, res) {
