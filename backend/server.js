@@ -8,7 +8,43 @@ const morgan = require("morgan");
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
-const { connectDB } = require("./config/prisma");
+const bcrypt = require("bcryptjs");
+const { prisma, connectDB } = require("./config/prisma");
+
+async function seedData() {
+  try {
+    const employeeCount = await prisma.employee.count();
+    if (employeeCount === 0) {
+      console.log("🌱 Seeding demo employees...");
+      await prisma.employee.createMany({
+        data: [
+          { firstName: "Roshni", lastName: "Vishwakarma", email: "roshni@example.com", department: "Engineering", title: "Lead Developer", salary: 150000, status: "ACTIVE" },
+          { firstName: "Rajesh", lastName: "Kumar", email: "rajesh@example.com", department: "Marketing", title: "Manager", salary: 95000, status: "ACTIVE" },
+          { firstName: "Anita", lastName: "Sharma", email: "anita@example.com", department: "HR", title: "Specialist", salary: 80000, status: "ACTIVE" },
+          { firstName: "Vikram", lastName: "Singh", email: "vikram@example.com", department: "Engineering", title: "QA Engineer", salary: 70000, status: "ON_LEAVE" },
+          { firstName: "Sunita", lastName: "Gupta", email: "sunita@example.com", department: "Sales", title: "Representative", salary: 65000, status: "ACTIVE" },
+        ]
+      });
+    }
+
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      console.log("🌱 Seeding admin user...");
+      const hashedPassword = await bcrypt.hash("admin123", 10);
+      await prisma.user.create({
+        data: {
+          name: "Admin",
+          email: "admin@ems.com",
+          password: hashedPassword,
+          role: "ADMIN"
+        }
+      });
+    }
+  } catch (error) {
+    console.error("❌ Seeding failed:", error.message);
+  }
+}
+
 
 const app = express();
 
@@ -40,6 +76,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
+  seedData();
   if (require.main === module) {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
