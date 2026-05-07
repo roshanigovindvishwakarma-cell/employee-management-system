@@ -27,19 +27,19 @@ async function seedData() {
       });
     }
 
-    const userCount = await prisma.user.count();
-    if (userCount === 0) {
-      console.log("🌱 Seeding admin user...");
-      const hashedPassword = await bcrypt.hash("admin123", 10);
-      await prisma.user.create({
-        data: {
-          name: "Admin",
-          email: "admin@ems.com",
-          password: hashedPassword,
-          role: "ADMIN"
-        }
-      });
-    }
+    console.log("🌱 Ensuring admin user exists...");
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await prisma.user.upsert({
+      where: { email: "admin@ems.com" },
+      update: {},
+      create: {
+        name: "Admin",
+        email: "admin@ems.com",
+        password: hashedPassword,
+        role: "ADMIN"
+      }
+    });
+    console.log("✅ Admin user ready.");
   } catch (error) {
     console.error("❌ Seeding failed:", error.message);
   }
