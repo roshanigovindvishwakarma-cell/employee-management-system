@@ -256,7 +256,7 @@
 
     .toolbar {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+      grid-template-columns: 1fr auto;
       gap: 12px;
       align-items: center;
       margin-bottom: 18px;
@@ -264,7 +264,7 @@
 
     .toolbar-controls {
       display: grid;
-      grid-template-columns: 1fr 180px;
+      grid-template-columns: minmax(200px, 400px) 180px;
       gap: 10px;
     }
 
@@ -655,6 +655,7 @@
               <option value="salary_asc">Salary Low-High</option>
             </select>
           </div>
+        </div>
 
         <div id="directoryStatus" class="status" style="margin-bottom: 12px;"></div>
 
