@@ -1233,7 +1233,7 @@
         const adminActions = isAdmin()
           ? `
             <button class="secondary" type="button" onclick="startEdit('${employee.id}')">Edit</button>
-            <button class="danger" type="button" onclick="deleteEmployee('${employee.id}')">Delete</button>
+            <button class="danger" type="button" onclick="handleDeleteEmployee('${employee.id}')">Delete</button>
           `
           : '<span class="subtle">View only</span>';
 
@@ -1502,31 +1502,45 @@
       setStatus("employeeStatus", "", "");
       updateSessionUi();
     }
-
-    async function deleteEmployee(id) {
-      if (!isAdmin()) return;
+    async function handleDeleteEmployee(id) {
+      if (!id) {
+        console.error("No employee ID provided for deletion.");
+        return;
+      }
+      
+      if (!isAdmin()) {
+        alert("Admin access is required to delete records.");
+        return;
+      }
 
       const employee = employees.find((item) => item.id === id);
-      const employeeName = employee ? employee.firstName + " " + employee.lastName : "this employee";
+      const employeeName = employee ? (employee.firstName + " " + employee.lastName) : "this employee";
       
       if (!window.confirm(`Are you sure you want to delete ${employeeName}?\nThis action cannot be undone.`)) {
         return;
       }
 
+      console.log("Attempting to delete employee:", id, employeeName);
       setStatus("directoryStatus", `Deleting ${employeeName}...`, "");
 
       try {
-        await api("/api/employees/" + id, {
+        const response = await api("/api/employees/" + id, {
           method: "DELETE",
           headers: authHeaders(false)
         });
+
+        console.log("Delete response:", response);
         setStatus("directoryStatus", `Successfully deleted ${employeeName}.`, "success");
+        
+        // If we were editing this employee, clear the form
         if (document.getElementById("employeeId").value === id) {
           resetEmployeeForm();
         }
+        
         await loadEmployees();
         await loadStats();
       } catch (error) {
+        console.error("Delete failed:", error);
         setStatus("directoryStatus", "Error: " + error.message, "error");
       }
     }
