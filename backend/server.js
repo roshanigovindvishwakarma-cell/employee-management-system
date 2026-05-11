@@ -28,13 +28,16 @@ async function seedData() {
     }
 
     console.log("🌱 Ensuring admin user exists...");
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash("password123", 10);
     await prisma.user.upsert({
-      where: { email: "admin@ems.com" },
-      update: {},
+      where: { email: "roshini123@gmail.com" },
+      update: {
+        password: hashedPassword,
+        name: "Roshini Admin"
+      },
       create: {
-        name: "Admin",
-        email: "admin@ems.com",
+        name: "Roshini Admin",
+        email: "roshini123@gmail.com",
         password: hashedPassword,
         role: "ADMIN"
       }

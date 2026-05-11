@@ -1350,6 +1350,8 @@
       document.getElementById("salary").value = employee.salary ?? "";
       document.getElementById("status").value = employee.status || "ACTIVE";
 
+      document.getElementById("employeeForm").scrollIntoView({ behavior: "smooth", block: "center" });
+
       document.getElementById("submitEmployeeButton").textContent = "Update Employee";
       document.getElementById("cancelEditButton").disabled = false;
       setStatus("employeeStatus", "Editing " + employee.firstName + " " + employee.lastName + ".", "");
