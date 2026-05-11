@@ -508,6 +508,15 @@
       color: var(--danger);
       transform: rotate(90deg);
     }
+
+    /* Admin-only visibility */
+    .admin-only {
+      display: none !important;
+    }
+
+    body.is-admin .admin-only {
+      display: table-cell !important;
+    }
   </style>
 </head>
 <body>
@@ -658,7 +667,7 @@
                 <th>Role</th>
                 <th>Status</th>
                 <th>Contact</th>
-                <th>Salary</th>
+                <th class="admin-only">Salary</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -1095,10 +1104,12 @@
       }
 
       if (isAdmin()) {
+        document.body.classList.add("is-admin");
         formHint.textContent = "Admin access enabled. You can create or edit employee records.";
         submitButton.disabled = false;
         clearButton.disabled = false;
       } else {
+        document.body.classList.remove("is-admin");
         formHint.textContent = signedIn
           ? "Your account can view employee data, but only admins can create or edit records."
           : "Sign in as an admin to create or update employees.";
@@ -1235,7 +1246,7 @@
             <td>${title}</td>
             <td><span class="${statusBadgeClass(status)}">${status}</span></td>
             <td>${phone}</td>
-            <td>${formatMoney(employee.salary)}</td>
+            <td class="admin-only">${formatMoney(employee.salary)}</td>
             <td>
               <div class="actions">${adminActions}</div>
             </td>
@@ -1282,7 +1293,12 @@
       }
 
       // Prepare full details including timestamps
-      const dataStr = JSON.stringify(employees, null, 2);
+      let dataToDownload = employees;
+      if (!isAdmin()) {
+        dataToDownload = employees.map(({ salary, ...rest }) => rest);
+      }
+
+      const dataStr = JSON.stringify(dataToDownload, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
